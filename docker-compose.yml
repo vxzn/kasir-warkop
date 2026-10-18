@@ -1,0 +1,64 @@
+services:
+  menu:
+    build: ./services/menu
+    environment:
+      DB_PATH: /data/menu.db
+    volumes:
+      - menu-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  pembayaran:
+    build: ./services/pembayaran
+    environment:
+      DB_PATH: /data/pembayaran.db
+      PESANAN_URL: http://pesanan:8000
+    volumes:
+      - pembayaran-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  pesanan:
+    build: ./services/pesanan
+    environment:
+      DB_PATH: /data/pesanan.db
+      MENU_URL: http://menu:8000
+      PEMBAYARAN_URL: http://pembayaran:8000
+    volumes:
+      - pesanan-data:/data
+    depends_on:
+      menu:
+        condition: service_healthy
+      pembayaran:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  gateway:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      menu:
+        condition: service_healthy
+      pesanan:
+        condition: service_healthy
+      pembayaran:
+        condition: service_healthy
+
+volumes:
+  menu-data:
+  pesanan-data:
+  pembayaran-data:

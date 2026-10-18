@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  integrasi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build dan jalankan semua layanan
+        run: docker compose up -d --build --wait
+
+      - name: Uji alur pesan-bayar (smoke test)
+        run: python3 scripts/smoke_test.py
+
+      - name: Tampilkan log jika gagal
+        if: failure()
+        run: docker compose logs
+
+      - name: Matikan layanan
+        if: always()
+        run: docker compose down -v
