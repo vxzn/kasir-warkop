@@ -2,265 +2,123 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kasir Warkop</title>
-<style>
-  :root {
-    --bg: #f6efe7; --card: #fff; --ink: #2b1d14; --muted: #7a6a5e;
-    --brand: #6f4e37; --brand-dark: #55392a; --line: #e6d9cb;
-    --ok: #2e7d32; --warn: #b26a00; --bad: #b3261e;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--ink); }
-  header { background: var(--brand); color: #fff; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-  header h1 { margin: 0; font-size: 20px; }
-  #laporan { font-size: 14px; opacity: .9; }
-  main { display: grid; grid-template-columns: 1fr 340px; gap: 16px; padding: 16px; max-width: 1200px; margin: auto; }
-  @media (max-width: 820px) { main { grid-template-columns: 1fr; } }
-  h2 { font-size: 16px; margin: 0 0 10px; }
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
-  #menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-  .item { text-align: left; border: 1px solid var(--line); background: #fffaf4; border-radius: 10px; padding: 10px; cursor: pointer; display: flex; flex-direction: column; gap: 3px; font: inherit; color: inherit; }
-  .item:hover:not(:disabled) { border-color: var(--brand); background: #fff3e4; }
-  .item:disabled { opacity: .45; cursor: not-allowed; }
-  .kat { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-  .item small { color: var(--muted); }
-  label { display: block; font-size: 13px; color: var(--muted); margin: 8px 0 3px; }
-  input, select { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
-  .baris { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
-  .qty { display: flex; align-items: center; gap: 6px; }
-  .qty button { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); background: #fff; cursor: pointer; }
-  .total { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; margin: 12px 0; }
-  .btn { border: 0; border-radius: 8px; padding: 10px 14px; font: inherit; font-weight: 600; cursor: pointer; background: var(--brand); color: #fff; }
-  .btn:hover { background: var(--brand-dark); }
-  .btn.full { width: 100%; }
-  .btn.alt { background: #fff; color: var(--brand); border: 1px solid var(--brand); }
-  .btn.bad { background: #fff; color: var(--bad); border: 1px solid var(--bad); }
-  .btn.sm { padding: 5px 10px; font-size: 13px; }
-  .kosong { color: var(--muted); font-size: 14px; padding: 8px 0; }
-  .pesanan { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
-  .pesanan .atas { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  .pesanan ul { margin: 6px 0; padding-left: 18px; font-size: 14px; color: var(--muted); }
-  .aksi { display: flex; gap: 6px; justify-content: flex-end; }
-  .badge { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; color: #fff; }
-  .MENUNGGU_PEMBAYARAN { background: var(--warn); }
-  .DIBAYAR { background: var(--ok); }
-  .SELESAI { background: #5f6b73; }
-  .BATAL { background: var(--bad); }
-  dialog { border: 0; border-radius: 12px; padding: 18px; width: min(360px, 92vw); }
-  dialog::backdrop { background: rgba(0,0,0,.4); }
-  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 8px; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; }
-  #toast.show { opacity: 1; }
-  #toast.bad { background: var(--bad); }
-</style>
+<meta name="description" content="Kasir warung kopi: pesan, bayar, dan pantau pesanan dari HP, tablet, atau komputer.">
+<meta name="theme-color" content="#6F4E37">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-<header>
-  <h1>&#9749; Kasir Warkop</h1>
-  <div id="laporan"></div>
+<body data-tab="menu">
+<a class="skip" href="#sec-menu">Langsung ke menu</a>
+
+<header class="topbar">
+  <h1><span aria-hidden="true">&#9749;</span> Kasir Warkop</h1>
+  <p id="laporan" class="laporan" aria-live="polite">Memuat laporan&hellip;</p>
 </header>
 
-<main>
-  <section>
-    <div class="panel">
-      <h2>Menu</h2>
-      <div id="menu"></div>
+<div id="offline" class="offline" role="status" hidden>
+  Tidak ada koneksi. Pesanan baru tidak dapat dikirim sampai tersambung kembali.
+</div>
+
+<main class="layout">
+  <!-- MENU -->
+  <section id="sec-menu" class="panel area-menu" aria-labelledby="h-menu">
+    <h2 id="h-menu">Menu</h2>
+    <div class="cari">
+      <label for="cari" class="sr">Cari menu</label>
+      <input id="cari" type="search" placeholder="Cari menu, mis. kopi" autocomplete="off">
     </div>
-    <div class="panel" style="margin-top:16px">
-      <h2>Daftar Pesanan</h2>
-      <div id="pesanan"></div>
-    </div>
+    <div id="kategori" class="chips" role="group" aria-label="Filter kategori"></div>
+    <div id="menu" class="menu-grid" aria-live="polite"></div>
   </section>
 
-  <aside class="panel" style="align-self:start">
-    <h2>Keranjang</h2>
-    <label for="nama">Nama pelanggan</label>
-    <input id="nama" placeholder="Pelanggan">
-    <label for="meja">Meja (opsional)</label>
-    <input id="meja" placeholder="mis. 3">
-    <div id="keranjang" style="margin-top:8px"></div>
-    <div class="total"><span>Total</span><span id="total">Rp 0</span></div>
-    <button class="btn full" onclick="buatPesanan()">Buat Pesanan</button>
+  <!-- KERANJANG -->
+  <aside id="sec-keranjang" class="panel area-cart" aria-labelledby="h-cart">
+    <div class="judul-baris">
+      <h2 id="h-cart">Keranjang</h2>
+      <button type="button" id="kosongkan" class="btn kecil teks" hidden>Kosongkan</button>
+    </div>
+    <div class="isian">
+      <div>
+        <label for="nama">Nama pelanggan</label>
+        <input id="nama" placeholder="Pelanggan" autocomplete="off" maxlength="40">
+      </div>
+      <div>
+        <label for="meja">Meja</label>
+        <input id="meja" placeholder="opsional" autocomplete="off" maxlength="10">
+      </div>
+    </div>
+    <div id="keranjang" class="keranjang"></div>
+    <div class="total"><span>Total</span><strong id="total">Rp 0</strong></div>
+    <button type="button" id="buat" class="btn besar penuh" disabled>Buat Pesanan</button>
+    <p id="petunjuk" class="petunjuk">Pilih menu dulu untuk membuat pesanan.</p>
   </aside>
+
+  <!-- PESANAN -->
+  <section id="sec-pesanan" class="panel area-orders" aria-labelledby="h-orders">
+    <div class="judul-baris">
+      <h2 id="h-orders">Daftar Pesanan</h2>
+      <div class="chips kecil" role="group" aria-label="Tampilkan pesanan">
+        <button type="button" class="chip" data-tampil="aktif" aria-pressed="true">Aktif</button>
+        <button type="button" class="chip" data-tampil="semua" aria-pressed="false">Semua</button>
+      </div>
+    </div>
+    <div id="pesanan" aria-live="polite"></div>
+  </section>
 </main>
 
-<dialog id="dlg">
-  <h2>Pembayaran Pesanan <span id="dlg-id"></span></h2>
-  <div class="total"><span>Total</span><span id="dlg-total"></span></div>
-  <label for="metode">Metode</label>
-  <select id="metode">
-    <option value="TUNAI">Tunai</option>
-    <option value="QRIS">QRIS</option>
-    <option value="TRANSFER">Transfer</option>
-  </select>
-  <label for="bayar">Uang diterima (Rp)</label>
-  <input id="bayar" type="number" min="1">
-  <div class="aksi" style="margin-top:14px">
-    <button class="btn alt" onclick="$('#dlg').close()">Tutup</button>
-    <button class="btn" onclick="konfirmasiBayar()">Konfirmasi</button>
+<!-- Navigasi bawah: hanya tampil di HP -->
+<nav class="bottomnav" aria-label="Navigasi utama">
+  <button type="button" data-tab="menu" aria-current="page"><span aria-hidden="true">&#9776;</span>Menu</button>
+  <button type="button" data-tab="keranjang">
+    <span aria-hidden="true">&#128722;</span>Keranjang
+    <span id="badge" class="badge-n" hidden>0</span>
+  </button>
+  <button type="button" data-tab="pesanan"><span aria-hidden="true">&#128203;</span>Pesanan</button>
+</nav>
+
+<!-- Dialog pembayaran -->
+<dialog id="dlg-bayar" aria-labelledby="dlg-judul">
+  <form id="form-bayar" method="dialog">
+    <h2 id="dlg-judul">Bayar pesanan <span id="dlg-id"></span></h2>
+    <div class="total"><span>Total tagihan</span><strong id="dlg-total"></strong></div>
+
+    <label for="metode">Metode pembayaran</label>
+    <select id="metode">
+      <option value="TUNAI">Tunai</option>
+      <option value="QRIS">QRIS</option>
+      <option value="TRANSFER">Transfer</option>
+    </select>
+
+    <div id="blok-tunai">
+      <label for="bayar">Uang diterima (Rp)</label>
+      <input id="bayar" type="number" inputmode="numeric" min="1" required>
+      <div id="cepat" class="chips kecil" role="group" aria-label="Pilih nominal cepat"></div>
+      <p id="kembalian" class="kembalian" aria-live="polite"></p>
+    </div>
+
+    <div class="aksi">
+      <button type="button" class="btn alt" id="bayar-tutup">Tutup</button>
+      <button type="submit" class="btn" id="bayar-ok">Konfirmasi pembayaran</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Dialog konfirmasi -->
+<dialog id="dlg-tanya" role="alertdialog" aria-labelledby="tanya-judul" aria-describedby="tanya-isi">
+  <h2 id="tanya-judul"></h2>
+  <p id="tanya-isi"></p>
+  <div class="aksi">
+    <button type="button" class="btn alt" id="tanya-tidak">Kembali</button>
+    <button type="button" class="btn bahaya" id="tanya-ya"></button>
   </div>
 </dialog>
 
-<div id="toast"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<script>
-const $ = s => document.querySelector(s);
-const rp = n => 'Rp ' + Number(n).toLocaleString('id-ID');
-const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-let menu = [];
-let cart = {};          // menu_id -> jumlah
-let bayarId = null;
-
-async function api(path, opts = {}) {
-  const r = await fetch('/api' + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    const d = data.detail;
-    throw new Error(Array.isArray(d) ? d.map(x => x.msg).join(', ') : (d || 'Error ' + r.status));
-  }
-  return data;
-}
-
-function toast(msg, bad = false) {
-  const t = $('#toast');
-  t.textContent = msg;
-  t.className = 'show' + (bad ? ' bad' : '');
-  clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => t.className = '', 3500);
-}
-
-/* ---------- Menu & keranjang ---------- */
-async function muatMenu() {
-  menu = await api('/menu');
-  $('#menu').innerHTML = menu.map(m => `
-    <button class="item" ${m.stok <= 0 ? 'disabled' : ''} onclick="tambah(${m.id})">
-      <span class="kat">${esc(m.kategori)}</span>
-      <strong>${esc(m.nama)}</strong>
-      <span>${rp(m.harga)}</span>
-      <small>${m.stok > 0 ? 'Stok ' + m.stok : 'Habis'}</small>
-    </button>`).join('');
-}
-
-function tambah(id) {
-  const m = menu.find(x => x.id === id);
-  if ((cart[id] || 0) + 1 > m.stok) return toast('Stok ' + m.nama + ' tidak cukup', true);
-  cart[id] = (cart[id] || 0) + 1;
-  renderKeranjang();
-}
-
-function ubah(id, d) {
-  const m = menu.find(x => x.id === id);
-  cart[id] = Math.min((cart[id] || 0) + d, m.stok);
-  if (cart[id] <= 0) delete cart[id];
-  renderKeranjang();
-}
-
-function renderKeranjang() {
-  const ids = Object.keys(cart).map(Number);
-  let total = 0;
-  $('#keranjang').innerHTML = ids.length ? ids.map(id => {
-    const m = menu.find(x => x.id === id);
-    total += m.harga * cart[id];
-    return `<div class="baris">
-      <span>${esc(m.nama)}<br><small style="color:var(--muted)">${rp(m.harga)}</small></span>
-      <span class="qty"><button onclick="ubah(${id},-1)">-</button>${cart[id]}<button onclick="ubah(${id},1)">+</button></span>
-    </div>`;
-  }).join('') : '<div class="kosong">Belum ada item. Klik menu untuk menambah.</div>';
-  $('#total').textContent = rp(total);
-}
-
-async function buatPesanan() {
-  const item = Object.entries(cart).map(([id, jumlah]) => ({ menu_id: Number(id), jumlah }));
-  if (!item.length) return toast('Keranjang masih kosong', true);
-  try {
-    const p = await api('/pesanan', {
-      method: 'POST',
-      body: JSON.stringify({
-        nama_pelanggan: $('#nama').value.trim() || 'Pelanggan',
-        meja: $('#meja').value.trim() || null,
-        item,
-      }),
-    });
-    cart = {}; $('#nama').value = ''; $('#meja').value = '';
-    toast('Pesanan #' + p.id + ' dibuat. Total ' + rp(p.total));
-    await refresh();
-  } catch (e) { toast(e.message, true); await muatMenu(); renderKeranjang(); }
-}
-
-/* ---------- Daftar pesanan ---------- */
-async function muatPesanan() {
-  const list = await api('/pesanan?limit=30');
-  $('#pesanan').innerHTML = list.length ? list.map(p => `
-    <div class="pesanan">
-      <div class="atas">
-        <strong>#${p.id} &middot; ${esc(p.nama_pelanggan)}${p.meja ? ' &middot; Meja ' + esc(p.meja) : ''}</strong>
-        <span class="badge ${p.status}">${p.status.replace('_', ' ')}</span>
-      </div>
-      <ul>${p.item.map(i => `<li>${i.jumlah} x ${esc(i.nama)}</li>`).join('')}</ul>
-      <div class="atas">
-        <strong>${rp(p.total)}</strong>
-        <span class="aksi">${aksi(p)}</span>
-      </div>
-    </div>`).join('') : '<div class="kosong">Belum ada pesanan.</div>';
-}
-
-function aksi(p) {
-  if (p.status === 'MENUNGGU_PEMBAYARAN')
-    return `<button class="btn sm" onclick="bukaBayar(${p.id},${p.total})">Bayar</button>
-            <button class="btn sm bad" onclick="batal(${p.id})">Batal</button>`;
-  if (p.status === 'DIBAYAR')
-    return `<button class="btn sm alt" onclick="selesai(${p.id})">Selesai</button>`;
-  return '';
-}
-
-async function batal(id) {
-  if (!confirm('Batalkan pesanan #' + id + '?')) return;
-  try { await api('/pesanan/' + id + '/batal', { method: 'POST' }); toast('Pesanan dibatalkan'); }
-  catch (e) { toast(e.message, true); }
-  await refresh();
-}
-
-async function selesai(id) {
-  try { await api('/pesanan/' + id + '/status', { method: 'PATCH', body: JSON.stringify({ status: 'SELESAI' }) }); }
-  catch (e) { toast(e.message, true); }
-  await refresh();
-}
-
-/* ---------- Pembayaran ---------- */
-function bukaBayar(id, total) {
-  bayarId = id;
-  $('#dlg-id').textContent = '#' + id;
-  $('#dlg-total').textContent = rp(total);
-  $('#bayar').value = total;
-  $('#dlg').showModal();
-}
-
-async function konfirmasiBayar() {
-  try {
-    const t = await api('/tagihan/' + bayarId + '/bayar', {
-      method: 'POST',
-      body: JSON.stringify({ metode: $('#metode').value, jumlah_bayar: Number($('#bayar').value) }),
-    });
-    $('#dlg').close();
-    toast('Lunas. Kembalian ' + rp(t.kembalian));
-    await refresh();
-  } catch (e) { toast(e.message, true); }
-}
-
-/* ---------- Laporan & refresh ---------- */
-async function muatLaporan() {
-  const l = await api('/tagihan/laporan');
-  $('#laporan').textContent = 'Hari ini: ' + l.jumlah_transaksi + ' transaksi, ' + rp(l.total_pendapatan);
-}
-
-async function refresh() {
-  try { await Promise.all([muatMenu(), muatPesanan(), muatLaporan()]); renderKeranjang(); }
-  catch (e) { toast('Gagal memuat data: ' + e.message, true); }
-}
-
-refresh();
-setInterval(() => { muatPesanan().catch(() => {}); muatLaporan().catch(() => {}); }, 5000);
-</script>
+<script src="js/app.js"></script>
 </body>
 </html>

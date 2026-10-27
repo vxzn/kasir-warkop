@@ -1,6 +1,22 @@
 # Kasir Warkop
 
-Sistem kasir untuk warung kopi: pelanggan memesan makanan/minuman, stok berkurang otomatis, tagihan dibuat otomatis, lalu kasir menerima pembayaran dan menghitung kembalian. Dibuat sebagai proyek mata kuliah **Cloud Computing** dengan arsitektur **microservices** yang dijalankan sebagai satu kesatuan memakai Docker Compose.
+Sistem kasir untuk warung kopi: pelanggan memesan makanan/minuman, stok berkurang otomatis, tagihan dibuat otomatis, lalu kasir menerima pembayaran dan menghitung kembalian. Dibuat sebagai proyek mata kuliah **Cloud Computing** dengan arsitektur **microservices** yang dijalankan sebagai satu kesatuan memakai Docker Compose, dengan antarmuka **multi-platform (HP, tablet, desktop)** yang dirancang berdasarkan prinsip **HCI/UX**.
+
+## Portofolio desain (HCI/UX dan multi-platform)
+
+| Bagian | Isi | Lokasi |
+|---|---|---|
+| Riset pengguna | Persona, kebutuhan (MoSCoW), user journey, panduan wawancara | [`docs/01-riset-pengguna.md`](docs/01-riset-pengguna.md) |
+| Analisis HCI | 10 heuristik Nielsen dan prinsip ergonomi, dipetakan ke fitur | [`docs/02-analisis-hci.md`](docs/02-analisis-hci.md) |
+| Design system | Warna (kontras terukur), tipografi, spasi, komponen | [`docs/03-design-system.md`](docs/03-design-system.md) |
+| Strategi multi-platform | Tata letak HP/tablet/desktop, PWA | [`docs/04-multiplatform.md`](docs/04-multiplatform.md) |
+| Evaluasi usability | Uji otomatis 43 pemeriksaan, evaluasi heuristik, rencana uji pengguna | [`docs/05-evaluasi-usability.md`](docs/05-evaluasi-usability.md) |
+| Bahan presentasi | Alur presentasi sesi Collaborative Learning | [`docs/06-bahan-presentasi.md`](docs/06-bahan-presentasi.md) |
+| Wireframe dan design system visual | SVG untuk HP, tablet, desktop | [`design/`](design) |
+| Tangkapan layar prototype | HP, tablet, desktop | [`design/screenshots/`](design/screenshots) |
+| Prototype frontend | HTML/CSS/JS tanpa framework, bisa dipasang sebagai PWA | [`frontend/`](frontend) |
+
+> Catatan jujur: persona adalah hipotesis, dan uji dengan pengguna nyata belum dilakukan. Lembar uji dan kuesioner SUS sudah disiapkan di `docs/05`.
 
 ## Arsitektur
 
@@ -56,7 +72,8 @@ Buka **http://localhost:8080**. Untuk mematikan: `docker compose down` (tambahka
 ### Uji otomatis alur pesan-bayar
 
 ```bash
-python3 scripts/smoke_test.py
+python3 scripts/smoke_test.py      # Linux/Mac
+python scripts/smoke_test.py       # Windows (PowerShell)
 ```
 
 Skrip ini membuat pesanan, memeriksa stok, tagihan, pembayaran, pembatalan, dan laporan. GitHub Actions menjalankan pengujian yang sama di setiap push (`.github/workflows/ci.yml`).
@@ -88,13 +105,18 @@ curl -X POST http://localhost:8080/api/pesanan \
 
 ```
 kasir-warkop/
+├── docs/                  # dokumen HCI/UX (01-06)
+├── design/                # wireframe SVG, design system, tangkapan layar
+├── frontend/              # prototype: index.html, css/, js/, icons/, manifest.json, sw.js
 ├── services/
-│   ├── menu/          # main.py, Dockerfile, requirements.txt
+│   ├── menu/              # main.py, Dockerfile, requirements.txt
 │   ├── pesanan/
 │   └── pembayaran/
-├── gateway/nginx.conf # API gateway
-├── frontend/index.html
-├── scripts/smoke_test.py
+├── gateway/nginx.conf     # API gateway + penyaji frontend
+├── scripts/
+│   ├── smoke_test.py      # uji integrasi backend
+│   ├── kontras.py         # pemeriksa kontras warna
+│   └── uji_antarmuka/     # uji UI otomatis (Playwright)
 ├── docker-compose.yml
 ├── .github/workflows/ci.yml
 └── README.md
