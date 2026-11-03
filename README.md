@@ -2,10 +2,10 @@
 
 Sistem kasir untuk warung kopi: pelanggan memesan makanan/minuman, stok berkurang otomatis, tagihan dibuat otomatis, lalu kasir menerima pembayaran dan menghitung kembalian. Dibuat sebagai proyek mata kuliah **Cloud Computing** dengan arsitektur **microservices** yang dijalankan sebagai satu kesatuan memakai Docker Compose, dengan antarmuka **multi-platform (HP, tablet, desktop)** yang dirancang berdasarkan prinsip **HCI/UX**.
 
-#  Nama & NIM
-Kelompok Mata Elang
-Nama : *Taufiq Hidayatullah (240602003)*
-        *Fachry maulana w   (240602068)*
+# Nama & NIM
+Kelompok Mata Elang :
+* Taufiq Hidayatullah (240602003)
+* Fachry maulana w (240602068)
 
 
 ## Portofolio desain (HCI/UX dan multi-platform)
