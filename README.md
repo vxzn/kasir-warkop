@@ -4,8 +4,8 @@ Sistem kasir untuk warung kopi: pelanggan memesan makanan/minuman, stok berkuran
 
 #  Nama & NIM
 Kelompok Mata Elang
-Nama : Taufiq Hidayatullah (240602003)
-        Fachry maulana w   (240602068)
+Nama : *Taufiq Hidayatullah (240602003)*
+        *Fachry maulana w   (240602068)*
 
 
 ## Portofolio desain (HCI/UX dan multi-platform)
