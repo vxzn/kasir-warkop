@@ -1,7 +1,7 @@
 /* Service worker sederhana: kerangka aplikasi (HTML/CSS/JS/ikon) disimpan di cache
    supaya aplikasi terbuka cepat dan bisa "dipasang". Data (/api) SELALU diambil
    dari jaringan agar stok dan pembayaran tidak pernah basi. */
-const CACHE = 'warkop-shell-v1';
+const CACHE = 'warkop-shell-v2';
 const SHELL = ['./', 'index.html', 'css/style.css', 'js/app.js', 'manifest.json', 'icons/icon.svg'];
 
 self.addEventListener('install', e => {

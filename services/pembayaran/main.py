@@ -3,16 +3,23 @@ kembalian, lalu memberi tahu Layanan Pesanan bahwa pesanan sudah dibayar."""
 import os
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+import auth
+import contoh_data
+import rekap
 
 DB_PATH = os.getenv("DB_PATH", "pembayaran.db")
 PESANAN_URL = os.getenv("PESANAN_URL", "http://pesanan:8000").rstrip("/")
+DEMO_DATA = os.getenv("DEMO_DATA", "false").strip().lower() in ("1", "true", "ya", "yes")
 WIB = timezone(timedelta(hours=7))
+
+auth.muat_konfigurasi()  # gagal sejak awal bila JWT_SECRET / SERVICE_KEY belum diatur
 
 app = FastAPI(title="Layanan Pembayaran - Kasir Warkop")
 
@@ -49,6 +56,10 @@ def init_db():
             )
             """
         )
+        # Mempercepat rekap, yang selalu menyaring status dan rentang waktu bayar.
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_tagihan_waktu ON tagihan (status, waktu_bayar)")
+        if DEMO_DATA:
+            contoh_data.isi(conn, sekarang().date())
 
 
 init_db()
@@ -77,7 +88,10 @@ def health():
     return {"status": "ok", "service": "pembayaran"}
 
 
-@app.post("/tagihan", status_code=201)
+# Aturan akses: tagihan dibuat dan dibatalkan hanya oleh layanan pesanan (bukan oleh pengguna
+# langsung). Kasir dan pemilik boleh melihat tagihan dan menerima pembayaran. Rekap penjualan
+# berisi data keuangan, jadi hanya untuk pemilik.
+@app.post("/tagihan", status_code=201, dependencies=[Depends(auth.dibutuhkan(layanan=True))])
 def buat_tagihan(data: TagihanBaru):
     with db() as conn:
         try:
@@ -91,7 +105,7 @@ def buat_tagihan(data: TagihanBaru):
         return _ambil(conn, data.pesanan_id)
 
 
-@app.get("/tagihan")
+@app.get("/tagihan", dependencies=[Depends(auth.dibutuhkan("kasir", "pemilik"))])
 def daftar_tagihan(status: str | None = None):
     with db() as conn:
         if status:
@@ -103,8 +117,8 @@ def daftar_tagihan(status: str | None = None):
     return [dict(r) for r in rows]
 
 
-# Harus dideklarasikan sebelum /tagihan/{pesanan_id}.
-@app.get("/tagihan/laporan")
+# Rute tetap (laporan, rekap) harus dideklarasikan sebelum /tagihan/{pesanan_id}.
+@app.get("/tagihan/laporan", dependencies=[Depends(auth.dibutuhkan("kasir", "pemilik"))])
 def laporan_hari_ini():
     hari_ini = sekarang().date().isoformat()
     with db() as conn:
@@ -120,7 +134,25 @@ def laporan_hari_ini():
     }
 
 
-@app.get("/tagihan/{pesanan_id}")
+@app.get("/tagihan/rekap", dependencies=[Depends(auth.dibutuhkan("pemilik"))])
+def rekap_penjualan(
+    periode: Literal["harian", "mingguan", "bulanan"] = "harian",
+    tanggal: str | None = None,
+):
+    """Rekap penjualan satu periode (harian, mingguan, atau bulanan).
+
+    tanggal: tanggal acuan (YYYY-MM-DD); bawaan hari ini. Mingguan = Senin-Minggu yang memuat
+    tanggal itu, bulanan = bulan kalender yang memuat tanggal itu.
+    """
+    try:
+        acuan = date.fromisoformat(tanggal) if tanggal else sekarang().date()
+    except ValueError:
+        raise HTTPException(422, "Format tanggal harus YYYY-MM-DD, contoh 2026-11-18")
+    with db() as conn:
+        return rekap.ambil_rekap(conn, periode, acuan)
+
+
+@app.get("/tagihan/{pesanan_id}", dependencies=[Depends(auth.dibutuhkan("kasir", "pemilik"))])
 def detail_tagihan(pesanan_id: int):
     with db() as conn:
         t = _ambil(conn, pesanan_id)
@@ -129,7 +161,7 @@ def detail_tagihan(pesanan_id: int):
     return t
 
 
-@app.post("/tagihan/{pesanan_id}/bayar")
+@app.post("/tagihan/{pesanan_id}/bayar", dependencies=[Depends(auth.dibutuhkan("kasir", "pemilik"))])
 def bayar(pesanan_id: int, data: Pembayaran):
     with db() as conn:
         t = _ambil(conn, pesanan_id)
@@ -166,6 +198,7 @@ def bayar(pesanan_id: int, data: Pembayaran):
         r = httpx.patch(
             f"{PESANAN_URL}/pesanan/{pesanan_id}/status",
             json={"status": "DIBAYAR"},
+            headers=auth.header_layanan(),
             timeout=5,
         )
         r.raise_for_status()
@@ -192,7 +225,7 @@ def _set_status(pesanan_id: int, status: str):
         )
 
 
-@app.post("/tagihan/{pesanan_id}/batal")
+@app.post("/tagihan/{pesanan_id}/batal", dependencies=[Depends(auth.dibutuhkan(layanan=True))])
 def batalkan_tagihan(pesanan_id: int):
     with db() as conn:
         t = _ambil(conn, pesanan_id)

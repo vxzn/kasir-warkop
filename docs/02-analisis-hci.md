@@ -53,6 +53,6 @@ Prinsip yang dipakai: kenali pengguna dan tugasnya, rancang alur sependek mungki
 ## 6. Keterbatasan yang diketahui
 
 - Belum diuji dengan **pembaca layar sungguhan** (NVDA/VoiceOver/TalkBack); hanya pemeriksaan semantik otomatis.
-- Belum ada login kasir, mode gelap, atau halaman bantuan.
+- Login kasir/pemilik sudah ada (lihat `docs/07`); belum ada mode gelap, atau halaman bantuan.
 - Saat offline, aplikasi terbuka dari cache tetapi **tidak bisa membuat atau membayar pesanan** (sengaja, agar stok dan pembayaran tidak ganda).
 - Persona belum divalidasi lewat wawancara nyata (`docs/01`).

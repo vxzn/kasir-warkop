@@ -11,22 +11,58 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-tab="menu">
-<a class="skip" href="#sec-menu">Langsung ke menu</a>
+<body data-tab="menu" data-sesi="keluar" data-peran="">
+<a class="skip" id="skip" href="#login-user">Langsung ke formulir masuk</a>
 
 <header class="topbar">
   <h1><span aria-hidden="true">&#9749;</span> Kasir Warkop</h1>
-  <p id="laporan" class="laporan" aria-live="polite">Memuat laporan&hellip;</p>
+
+  <!-- Pindah halaman (tablet/desktop, hanya pemilik). Di HP memakai navigasi bawah. -->
+  <nav id="halaman" class="halaman" aria-label="Halaman" hidden>
+    <button type="button" class="chip" data-halaman="kasir" aria-pressed="true">Kasir</button>
+    <button type="button" class="chip" data-halaman="rekap" aria-pressed="false">Rekap</button>
+  </nav>
+
+  <p id="laporan" class="laporan" aria-live="polite" hidden>Memuat laporan&hellip;</p>
+
+  <div id="akun" class="akun" hidden>
+    <span class="akun-info"><span id="akun-nama"></span> <span id="akun-peran" class="peran"></span></span>
+    <button type="button" id="keluar" class="btn kecil terang">Keluar</button>
+  </div>
 </header>
 
 <div id="offline" class="offline" role="status" hidden>
   Tidak ada koneksi. Pesanan baru tidak dapat dikirim sampai tersambung kembali.
 </div>
 
-<main class="layout">
+<!-- MASUK (tampil selama belum login) -->
+<main id="login-halaman" class="login-halaman">
+  <form id="form-login" class="kartu-login panel" novalidate>
+    <h2 id="h-login">Masuk</h2>
+    <p class="sub">Masuk untuk mengelola pesanan dan pembayaran.</p>
+
+    <p id="login-info" class="info-login" role="status" hidden></p>
+
+    <label for="login-user">Nama pengguna</label>
+    <input id="login-user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" aria-describedby="login-galat">
+
+    <label for="login-sandi">Kata sandi</label>
+    <div class="sandi">
+      <input id="login-sandi" name="password" type="password" autocomplete="current-password" aria-describedby="login-galat">
+      <button type="button" id="lihat-sandi" class="btn kecil alt" aria-pressed="false" aria-controls="login-sandi">Tampilkan</button>
+    </div>
+
+    <p id="login-galat" class="galat" role="alert" hidden></p>
+
+    <button type="submit" id="login-ok" class="btn besar penuh">Masuk</button>
+    <p class="petunjuk">Lupa kata sandi? Hubungi pemilik warkop.</p>
+  </form>
+</main>
+
+<main id="aplikasi" class="layout" hidden>
   <!-- MENU -->
   <section id="sec-menu" class="panel area-menu" aria-labelledby="h-menu">
-    <h2 id="h-menu">Menu</h2>
+    <h2 id="h-menu" tabindex="-1">Menu</h2>
     <div class="cari">
       <label for="cari" class="sr">Cari menu</label>
       <input id="cari" type="search" placeholder="Cari menu, mis. kopi" autocomplete="off">
@@ -68,16 +104,45 @@
     </div>
     <div id="pesanan" aria-live="polite"></div>
   </section>
+
+  <!-- REKAP PENJUALAN (hanya pemilik) -->
+  <section id="sec-rekap" class="panel area-rekap" aria-labelledby="h-rekap" hidden>
+    <div class="judul-baris">
+      <h2 id="h-rekap" tabindex="-1">Rekap Penjualan</h2>
+      <button type="button" id="rekap-muat" class="btn kecil alt">Muat ulang</button>
+    </div>
+
+    <div class="rekap-kontrol">
+      <div id="rekap-periode" class="chips kecil" role="group" aria-label="Periode rekap">
+        <button type="button" class="chip" data-periode="harian" aria-pressed="false">Harian</button>
+        <button type="button" class="chip" data-periode="mingguan" aria-pressed="true">Mingguan</button>
+        <button type="button" class="chip" data-periode="bulanan" aria-pressed="false">Bulanan</button>
+      </div>
+      <div class="rekap-tanggal">
+        <button type="button" id="rekap-prev" class="btn kecil alt" aria-label="Periode sebelumnya">&lsaquo;</button>
+        <div>
+          <label for="rekap-tgl" class="sr">Tanggal acuan</label>
+          <input id="rekap-tgl" type="date">
+        </div>
+        <button type="button" id="rekap-next" class="btn kecil alt" aria-label="Periode berikutnya">&rsaquo;</button>
+        <button type="button" id="rekap-ini" class="btn kecil teks">Hari ini</button>
+      </div>
+    </div>
+
+    <p id="rekap-label" class="rekap-label" aria-live="polite"></p>
+    <div id="rekap-isi" aria-busy="false"></div>
+  </section>
 </main>
 
 <!-- Navigasi bawah: hanya tampil di HP -->
-<nav class="bottomnav" aria-label="Navigasi utama">
+<nav id="bottomnav" class="bottomnav" aria-label="Navigasi utama" hidden>
   <button type="button" data-tab="menu" aria-current="page"><span aria-hidden="true">&#9776;</span>Menu</button>
   <button type="button" data-tab="keranjang">
     <span aria-hidden="true">&#128722;</span>Keranjang
     <span id="badge" class="badge-n" hidden>0</span>
   </button>
   <button type="button" data-tab="pesanan"><span aria-hidden="true">&#128203;</span>Pesanan</button>
+  <button type="button" data-tab="rekap" hidden><span aria-hidden="true">&#128200;</span>Rekap</button>
 </nav>
 
 <!-- Dialog pembayaran -->

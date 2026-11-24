@@ -19,6 +19,7 @@ TOKEN = {
     "done": "#4a5560",
     "focus": "#0b57d0",
     "putih": "#ffffff",
+    "galat-bg": "#fdeceb",
 }
 
 # (keterangan, depan, belakang, ambang)
@@ -37,6 +38,10 @@ PASANGAN = [
     ("Lencana: Menunggu (putih di oranye tua)", "putih", "warn", 4.5),
     ("Lencana: Dibatalkan (putih di merah)", "putih", "bad", 4.5),
     ("Lencana: Selesai (putih di abu-abu biru)", "putih", "done", 4.5),
+    ("Pesan galat masuk (merah di merah muda)", "bad", "galat-bg", 4.5),
+    ("Naik/turun di panel putih (hijau)", "ok", "surface", 4.5),
+    ("Teks putih di header (halaman Rekap, Keluar)", "putih", "brand", 4.5),
+    ("Chip header terpilih (cokelat di putih)", "brand", "putih", 4.5),
     ("Garis tepi kolom isian di panel putih", "line-strong", "surface", 3.0),
     ("Cincin fokus di panel putih", "focus", "surface", 3.0),
     ("Cincin fokus di latar halaman", "focus", "bg", 3.0),

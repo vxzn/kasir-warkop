@@ -53,6 +53,14 @@ h2 { font-size: 18px; }
 }
 .topbar h1 { font-size: 20px; }
 .laporan { margin: 0; font-size: 14px; }
+.halaman { display: flex; gap: 8px; }
+.halaman .chip { background: transparent; color: #fff; border-color: #fff; }
+.halaman .chip[aria-pressed="true"] { background: #fff; color: var(--brand); }
+.akun { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.peran { background: #fff; color: var(--brand); border-radius: 99px; padding: 2px 10px; font-size: 12px; font-weight: 700; }
+.btn.terang { background: transparent; color: #fff; border-color: #fff; }
+.btn.terang:hover:not(:disabled) { background: #fff; color: var(--brand); border-color: #fff; }
+@media (max-width: 699px) { .halaman { display: none; } .akun-info { display: none; } }
 .offline { background: var(--warn); color: #fff; padding: 10px 20px; font-size: 14px; }
 
 /* ---------- Tata letak ---------- */
@@ -66,6 +74,11 @@ h2 { font-size: 18px; }
 .area-menu { grid-area: menu; }
 .area-cart { grid-area: cart; }
 .area-orders { grid-area: orders; }
+.area-rekap { grid-column: 1 / -1; display: none; }
+body[data-tab="rekap"] .area-rekap { display: block; }
+body[data-tab="rekap"] .area-menu,
+body[data-tab="rekap"] .area-cart,
+body[data-tab="rekap"] .area-orders { display: none; }
 
 /* Desktop */
 @media (min-width: 1100px) {
@@ -92,10 +105,11 @@ h2 { font-size: 18px; }
     grid-template-areas: "main";
     padding: 12px 12px calc(88px + env(safe-area-inset-bottom));
   }
-  .area-menu, .area-cart, .area-orders { grid-area: main; display: none; }
+  .area-menu, .area-cart, .area-orders, .area-rekap { grid-area: main; display: none; }
   body[data-tab="menu"] .area-menu,
   body[data-tab="keranjang"] .area-cart,
-  body[data-tab="pesanan"] .area-orders { display: block; }
+  body[data-tab="pesanan"] .area-orders,
+  body[data-tab="rekap"] .area-rekap { display: block; }
 }
 
 .panel {
@@ -229,6 +243,64 @@ input, select {
 .status.SELESAI { background: var(--done); }
 .status.BATAL { background: var(--bad); }
 
+/* ---------- Halaman masuk ---------- */
+.login-halaman { display: grid; place-items: start center; padding: 32px 16px; }
+.kartu-login { width: min(420px, 100%); padding: 22px; }
+.kartu-login .sub { color: var(--muted); margin: 4px 0 8px; }
+.sandi { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.galat { margin: 10px 0 0; padding: 10px 12px; border: 1px solid var(--bad); border-radius: 10px; color: var(--bad); background: #fdeceb; font-weight: 600; }
+.info-login { margin: 8px 0; padding: 10px 12px; border-radius: 10px; background: var(--kartu); border: 1px solid var(--line-strong); font-weight: 600; }
+.kartu-login .btn.penuh { margin-top: 16px; }
+.btn.alt[aria-pressed="true"] { background: var(--kartu); }
+
+/* ---------- Rekap penjualan ---------- */
+.rekap-kontrol { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.rekap-tanggal { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.rekap-kontrol, .rekap-kontrol > * { min-width: 0; }
+.rekap-tanggal input { min-width: 0; }
+.rekap-tanggal input { width: auto; }
+.rekap-tanggal .btn.kecil { min-width: 44px; font-size: 20px; padding: 4px 10px; }
+.rekap-tanggal .btn.teks { font-size: 14px; }
+.rekap-label { margin: 8px 0 12px; font-size: 18px; font-weight: 700; }
+.panel h3 { margin: 18px 0 8px; font-size: 16px; }
+.kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.kartu-kpi { border: 1px solid var(--line); border-radius: 10px; background: var(--kartu); padding: 12px; }
+.kartu-kpi span { display: block; font-size: 13px; color: var(--muted); font-weight: 600; }
+.kartu-kpi strong { font-size: 22px; }
+.banding { margin: 10px 0 0; color: var(--muted); }
+.naik { color: var(--ok); font-weight: 700; }
+.turun { color: var(--bad); font-weight: 700; }
+.grafik { display: flex; align-items: stretch; gap: 3px; height: 200px; padding-top: 8px; border-bottom: 2px solid var(--line-strong); }
+.bar { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; position: relative; }
+.bar-isi { background: var(--brand); border-radius: 4px 4px 0 0; min-height: 0; }
+.bar.puncak .bar-isi { background: var(--ink); }
+.bar-label { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.grafik { margin-bottom: 28px; }
+.puncak-info { margin: 0; font-size: 14px; color: var(--muted); }
+.metode-daftar { list-style: none; margin: 0; padding: 0; }
+.metode-daftar li { display: grid; grid-template-columns: 80px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.metode-daftar small { color: var(--muted); }
+.meter { height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.meter span { display: block; height: 100%; background: var(--brand); }
+.tabel-rincian { margin-top: 16px; }
+.tabel-rincian summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; color: var(--brand); }
+.tabel-bungkus { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+thead th { background: var(--kartu); }
+tfoot th, tfoot td { font-weight: 700; border-top: 2px solid var(--line-strong); }
+.galat-blok { color: var(--bad); }
+@media (max-width: 699px) {
+  .rekap-kontrol { flex-direction: column; align-items: stretch; }
+  .rekap-tanggal { justify-content: space-between; }
+  .rekap-tanggal > div { flex: 1 1 110px; min-width: 0; }
+  .rekap-tanggal input { width: 100%; }
+  .grafik.padat { gap: 1px; }
+  .metode-daftar li { grid-template-columns: 70px 1fr; }
+  .metode-daftar .angka { grid-column: 1 / -1; }
+}
+
 /* ---------- Dialog ---------- */
 dialog { border: 0; border-radius: 14px; padding: 20px; width: min(420px, 94vw); color: var(--ink); }
 dialog::backdrop { background: rgba(0, 0, 0, .5); }
@@ -242,7 +314,7 @@ dialog p { margin: 0 0 8px; }
 .bottomnav { display: none; }
 @media (max-width: 699px) {
   .bottomnav {
-    display: grid; grid-template-columns: repeat(3, 1fr);
+    display: grid; grid-template-columns: repeat(var(--kolom, 3), 1fr);
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
     background: var(--surface); border-top: 1px solid var(--line);
     padding-bottom: env(safe-area-inset-bottom);

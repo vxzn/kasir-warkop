@@ -19,6 +19,18 @@ def cek(kondisi, pesan):
     print(("ok   : " if kondisi else "GAGAL: ") + pesan)
 
 
+def masuk(pg, user="kasir1", sandi="kasir123"):
+    pg.fill("#login-user", user)
+    pg.fill("#login-sandi", sandi)
+    pg.click("#login-ok")
+    pg.wait_for_selector(".item")
+
+
+def buka(pg, user="kasir1", sandi="kasir123"):
+    pg.goto(BASE)
+    masuk(pg, user, sandi)
+
+
 UKURAN = {"hp": (390, 844), "tablet": (1024, 768), "desktop": (1440, 900)}
 
 with sync_playwright() as pw:
@@ -28,10 +40,36 @@ with sync_playwright() as pw:
     ctx = br.new_context(viewport={"width": 390, "height": 844}, has_touch=True, locale="id-ID")
     page = ctx.new_page()
     galat = []
-    page.on("console", lambda m: galat.append(m.text) if m.type == "error" else None)
+    # 401 pada login yang sengaja salah dicatat browser sebagai "Failed to load resource": itu perilaku yang diharapkan.
+    page.on("console", lambda m: galat.append(m.text) if m.type == "error" and "401" not in m.text else None)
     page.on("pageerror", lambda e: galat.append(str(e)))
     page.goto(BASE)
+
+    # ---------- Halaman masuk ----------
+    cek(page.locator("#form-login").is_visible(), "belum masuk: hanya formulir login yang tampil")
+    cek(not page.locator("#aplikasi").is_visible() and not page.locator(".bottomnav").is_visible(),
+        "belum masuk: menu, pesanan, dan navigasi tersembunyi")
+    cek(page.evaluate("document.activeElement.id") == "login-user", "fokus awal di kolom nama pengguna")
+    page.screenshot(path=str(OUT / "hp-0-login.png"))
+    page.click("#login-ok")
+    cek("Isi nama pengguna" in page.inner_text("#login-galat"), "login kosong: pesan galat jelas")
+    page.fill("#login-user", "kasir1")
+    page.fill("#login-sandi", "salah-total")
+    page.click("#login-ok")
+    page.wait_for_function("document.querySelector('#login-galat').innerText.includes('salah')")
+    cek(page.locator("#login-galat").get_attribute("role") == "alert", "galat login diumumkan ke pembaca layar (role=alert)")
+    cek(not page.locator("#aplikasi").is_visible(), "sandi salah: tetap di halaman masuk")
+    cek(page.evaluate("sessionStorage.getItem('warkop.sesi')") is None, "sandi salah: tidak ada token tersimpan")
+    page.click("#lihat-sandi")
+    cek(page.get_attribute("#login-sandi", "type") == "text", "tombol Tampilkan membuka isi sandi")
+    page.click("#lihat-sandi")
+    page.fill("#login-sandi", "kasir123")
+    page.keyboard.press("Enter")
     page.wait_for_selector(".item")
+    cek(page.inner_text("#akun-nama") == "Kasir Satu" or page.inner_text("#akun-nama") != "", "nama akun tampil di header")
+    cek(page.inner_text("#akun-peran") == "Kasir", "peran Kasir tampil di header")
+    cek(page.locator('.bottomnav [data-tab="rekap"]').is_hidden(), "kasir: tab Rekap tidak ada")
+    cek(page.locator("#halaman").is_hidden(), "kasir: pindah halaman Rekap tidak ada")
 
     cek(page.locator(".item").count() == 9, "9 menu tampil")
     cek(page.locator(".item[disabled]").count() == 1, "menu stok habis dinonaktifkan")
@@ -65,6 +103,7 @@ with sync_playwright() as pw:
     # keranjang bertahan setelah muat ulang
     page.reload()
     page.wait_for_selector(".item")
+    cek(page.locator("#form-login").is_hidden(), "sesi bertahan setelah muat ulang (tidak diminta masuk lagi)")
     page.click('.bottomnav [data-tab="keranjang"]')
     cek(page.inner_text("#total") == "Rp 21.000", "keranjang bertahan setelah muat ulang")
 
@@ -123,11 +162,12 @@ with sync_playwright() as pw:
     for nama, (w, h) in UKURAN.items():
         ctx = br.new_context(viewport={"width": w, "height": h}, has_touch=(nama != "desktop"), locale="id-ID")
         pg = ctx.new_page()
-        pg.goto(BASE)
+        buka(pg)
+        pg.reload()
         pg.wait_for_selector(".item")
-        # fokus keyboard diperiksa di halaman yang baru dibuka (Tab 1 = tautan lompat, Tab 2 = kolom cari)
-        pg.keyboard.press("Tab")
-        pg.keyboard.press("Tab")
+        # fokus keyboard diperiksa di halaman yang baru dibuka (Tab 1 = tautan lompat, 2 = Keluar, 3 = kolom cari)
+        for _ in range(3):
+            pg.keyboard.press("Tab")
         info = pg.evaluate("""() => { const e = document.activeElement; const c = getComputedStyle(e);
           return { id: e.id || e.className || e.tagName, garis: c.outlineStyle, lebar: c.outlineWidth }; }""")
         cek(info["garis"] != "none" and info["lebar"] != "0px", f"{nama}: indikator fokus terlihat pada '{info['id']}' ({info['garis']} {info['lebar']})")
@@ -160,20 +200,18 @@ with sync_playwright() as pw:
     for w in (320, 360, 390):
         ctx = br.new_context(viewport={"width": w, "height": 740}, has_touch=True)
         pg = ctx.new_page()
-        pg.goto(BASE)
-        pg.wait_for_selector(".item")
+        buka(pg, "pemilik", "pemilik123")
         lebih = []
-        for tab in ("menu", "keranjang", "pesanan"):
+        for tab in ("menu", "keranjang", "pesanan", "rekap"):
             pg.click(f'.bottomnav [data-tab="{tab}"]')
             lebih.append(pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"))
-        cek(all(x <= 0 for x in lebih), f"lebar {w}px: tidak ada gulir horizontal di tab menu/keranjang/pesanan {lebih}")
+        cek(all(x <= 0 for x in lebih), f"lebar {w}px: tidak ada gulir horizontal di tab menu/keranjang/pesanan/rekap {lebih}")
         ctx.close()
 
     # ---------- Keyboard: Enter mengirim pembayaran, Esc menutup dialog tanpa membatalkan ----------
     ctx = br.new_context(viewport={"width": 1280, "height": 800})
     pg = ctx.new_page()
-    pg.goto(BASE)
-    pg.wait_for_selector(".item")
+    buka(pg)
     pg.click('[data-add="1"]')
     pg.click("#buat")
     pg.wait_for_selector("[data-bayar]")
@@ -191,6 +229,122 @@ with sync_playwright() as pw:
     pg.keyboard.press("Escape")
     pg.wait_for_function("!document.querySelector('#dlg-tanya').open")
     cek("Menunggu bayar" in pg.inner_text("#pesanan"), "keyboard: Esc menutup dialog batal dan pesanan tidak dibatalkan")
+    ctx.close()
+
+    # ---------- Pemilik: halaman Rekap ----------
+    ctx = br.new_context(viewport={"width": 1280, "height": 800}, locale="id-ID")
+    pg = ctx.new_page()
+    buka(pg, "pemilik", "pemilik123")
+    cek(pg.inner_text("#akun-peran") == "Pemilik", "pemilik: peran tampil di header")
+    cek(pg.locator("#halaman").is_visible(), "pemilik: tombol Kasir | Rekap tampil di desktop")
+    pg.click('#halaman [data-halaman="rekap"]')
+    pg.wait_for_selector(".kartu-kpi")
+    cek(pg.locator("#sec-rekap").is_visible() and not pg.locator("#sec-menu").is_visible(), "desktop: halaman Rekap menggantikan layar kasir")
+    cek(pg.get_attribute('#rekap-periode [data-periode="mingguan"]', "aria-pressed") == "true", "periode awal: Mingguan")
+    cek("-" in pg.inner_text("#rekap-label"), "label rentang pekan tampil: " + pg.inner_text("#rekap-label"))
+    cek(pg.locator(".kartu-kpi").count() == 3, "tiga kartu ringkasan (total, transaksi, rata-rata)")
+    cek(pg.locator(".grafik .bar").count() == 7, "grafik mingguan: 7 batang")
+    cek("Grafik batang" in (pg.get_attribute(".grafik", "aria-label") or ""), "grafik punya teks alternatif")
+    pg.click(".tabel-rincian summary")
+    cek(pg.locator(".tabel-rincian table tbody tr").count() >= 1, "tabel alternatif bisa dibuka")
+    pg.screenshot(path=str(OUT / "desktop-rekap-mingguan.png"), full_page=True)
+
+    pg.click('[data-periode="bulanan"]')
+    pg.wait_for_function("document.querySelectorAll('.grafik .bar').length >= 28")
+    cek(True, "periode Bulanan: batang per tanggal (>= 28)")
+    pg.screenshot(path=str(OUT / "desktop-rekap-bulanan.png"), full_page=True)
+    pg.click('[data-periode="harian"]')
+    pg.wait_for_function("document.querySelectorAll('.grafik .bar').length === 24")
+    cek(True, "periode Harian: 24 batang per jam")
+
+    pg.click("#rekap-prev")
+    pg.wait_for_function("document.querySelector('#rekap-label').innerText.includes(',')")
+    kemarin = pg.input_value("#rekap-tgl")
+    cek(kemarin < pg.evaluate("hariIni()"), "tombol sebelumnya memundurkan tanggal: " + kemarin)
+    cek(pg.locator("#rekap-next").is_enabled(), "periode lampau: tombol berikutnya aktif")
+    pg.click("#rekap-ini")
+    pg.wait_for_function("document.querySelector('#rekap-isi').getAttribute('aria-busy') === 'false'")
+    cek(pg.locator("#rekap-next").is_disabled(), "hari ini: tidak bisa maju ke masa depan")
+
+    pg.click('[data-periode="mingguan"]')
+    pg.click("#rekap-prev")
+    pg.wait_for_selector(".banding")
+    cek("dibanding pekan lalu" in pg.inner_text(".banding"), "perbandingan dengan pekan lalu tampil")
+    cek(pg.locator(".metode-daftar li").count() >= 1, "rincian per metode pembayaran tampil")
+
+    # rekap bertambah setelah ada pembayaran hari ini
+    pg.click('[data-periode="harian"]')
+    pg.click("#rekap-ini")
+    pg.wait_for_function("document.querySelector('#rekap-isi').getAttribute('aria-busy') === 'false' && document.querySelector('#rekap-isi .kpi')")
+    sebelum = pg.evaluate("""() => { const k = document.querySelector('#rekap-isi .kartu-kpi:nth-child(2) strong');
+                                      return k ? Number(k.textContent) : 0; }""")
+    pg.click('#halaman [data-halaman="kasir"]')
+    pg.click('[data-add="1"]')
+    pg.click("#buat")
+    pg.wait_for_selector("[data-bayar]")
+    pg.click("[data-bayar]")
+    pg.click("#bayar-ok")
+    pg.wait_for_function("document.querySelector('#pesanan').innerText.includes('Sudah dibayar')")
+    pg.click('#halaman [data-halaman="rekap"]')
+    pg.click('[data-periode="harian"]')
+    pg.click("#rekap-ini")
+    pg.wait_for_function("document.querySelector('#rekap-isi').getAttribute('aria-busy') === 'false' && document.querySelector('#rekap-isi .kpi')")
+    sesudah = int(pg.inner_text("#rekap-isi .kartu-kpi:nth-child(2) strong"))
+    cek(sesudah == sebelum + 1, f"rekap harian bertambah satu transaksi setelah pembayaran ({sebelum} -> {sesudah})")
+
+    # rekap kosong: pilih tanggal di masa lalu jauh
+    pg.fill("#rekap-tgl", "2020-01-01")
+    pg.wait_for_function("document.querySelector('#rekap-isi').innerText.includes('Belum ada pembayaran')")
+    cek(True, "periode tanpa penjualan: pesan kosong yang jelas")
+    ctx.close()
+
+    # HP (pemilik): tab Rekap di navigasi bawah
+    ctx = br.new_context(viewport={"width": 390, "height": 844}, has_touch=True, locale="id-ID")
+    pg = ctx.new_page()
+    buka(pg, "pemilik", "pemilik123")
+    cek(pg.locator('.bottomnav [data-tab="rekap"]').is_visible(), "HP pemilik: tab Rekap tampil")
+    cek(pg.locator("#halaman").is_hidden(), "HP: pindah halaman memakai navigasi bawah saja")
+    pg.click('.bottomnav [data-tab="rekap"]')
+    pg.wait_for_selector(".kartu-kpi")
+    pg.screenshot(path=str(OUT / "hp-5-rekap.png"), full_page=True)
+    cek(pg.get_attribute('.bottomnav [data-tab="rekap"]', "aria-current") == "page", "tab Rekap ditandai aktif")
+    ctx.close()
+
+    # ---------- Keamanan di sisi antarmuka ----------
+    ctx = br.new_context(viewport={"width": 1280, "height": 800})
+    pg = ctx.new_page()
+    buka(pg)   # kasir
+    kode = pg.evaluate("""async () => (await fetch('/api/tagihan/rekap?periode=harian',
+        { headers: { Authorization: 'Bearer ' + JSON.parse(sessionStorage.getItem('warkop.sesi')).token } })).status""")
+    cek(kode == 403, f"kasir memanggil API rekap langsung -> {kode} (diharapkan 403)")
+    kode = pg.evaluate("async () => (await fetch('/api/pesanan')).status")
+    cek(kode == 401, f"tanpa token -> {kode} (diharapkan 401)")
+    pg.evaluate("""() => { const s = JSON.parse(sessionStorage.getItem('warkop.sesi')); s.token = s.token.slice(0, -4) + 'AAAA';
+                           sessionStorage.setItem('warkop.sesi', JSON.stringify(s)); }""")
+    pg.reload()
+    pg.wait_for_selector("#login-halaman:not([hidden])")
+    cek("Sesi berakhir" in pg.inner_text("#login-info"), "token rusak: kembali ke login dengan pesan 'Sesi berakhir'")
+    cek(pg.evaluate("sessionStorage.getItem('warkop.sesi')") is None, "token rusak dihapus dari penyimpanan")
+
+    masuk(pg)
+    pg.click("#keluar")
+    pg.wait_for_selector("#dlg-tanya[open]")
+    pg.click("#tanya-ya")
+    pg.wait_for_selector("#login-halaman:not([hidden])")
+    cek(pg.locator("#aplikasi").is_hidden() and pg.evaluate("sessionStorage.getItem('warkop.sesi')") is None,
+        "keluar: data disembunyikan dan token dihapus")
+    cek(pg.evaluate("document.activeElement.id") == "login-user", "keluar: fokus kembali ke kolom nama pengguna")
+
+    for _ in range(5):
+        pg.fill("#login-user", "penyusup")
+        pg.fill("#login-sandi", "tebak-tebakan")
+        pg.click("#login-ok")
+        pg.wait_for_function("!document.querySelector('#login-ok').disabled")
+    pg.fill("#login-user", "penyusup")
+    pg.fill("#login-sandi", "tebak-tebakan")
+    pg.click("#login-ok")
+    pg.wait_for_function("document.querySelector('#login-galat').innerText.includes('Terlalu banyak')")
+    cek(True, "5 kali gagal: percobaan berikutnya diblokir sementara (429)")
     ctx.close()
 
     br.close()

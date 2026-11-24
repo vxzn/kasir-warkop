@@ -3,10 +3,14 @@ import os
 import sqlite3
 from contextlib import contextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+import auth
+
 DB_PATH = os.getenv("DB_PATH", "menu.db")
+
+auth.muat_konfigurasi()  # gagal sejak awal bila JWT_SECRET / SERVICE_KEY belum diatur
 
 app = FastAPI(title="Layanan Menu - Kasir Warkop")
 
@@ -75,7 +79,10 @@ def health():
     return {"status": "ok", "service": "menu"}
 
 
-@app.get("/menu")
+# Aturan akses: kasir dan pemilik boleh melihat menu; layanan pesanan memanggilnya dengan
+# kunci layanan. Menambah menu hanya untuk pemilik. Mengubah stok hanya untuk pemilik
+# atau layanan pesanan (pemotongan stok terjadi saat pesanan dibuat/dibatalkan).
+@app.get("/menu", dependencies=[Depends(auth.dibutuhkan("kasir", "pemilik", layanan=True))])
 def daftar_menu(kategori: str | None = None):
     with db() as conn:
         if kategori:
@@ -87,7 +94,7 @@ def daftar_menu(kategori: str | None = None):
     return [dict(r) for r in rows]
 
 
-@app.get("/menu/{menu_id}")
+@app.get("/menu/{menu_id}", dependencies=[Depends(auth.dibutuhkan("kasir", "pemilik", layanan=True))])
 def detail_menu(menu_id: int):
     with db() as conn:
         row = conn.execute("SELECT * FROM menu WHERE id = ?", (menu_id,)).fetchone()
@@ -96,7 +103,7 @@ def detail_menu(menu_id: int):
     return dict(row)
 
 
-@app.post("/menu", status_code=201)
+@app.post("/menu", status_code=201, dependencies=[Depends(auth.dibutuhkan("pemilik"))])
 def tambah_menu(data: MenuBaru):
     with db() as conn:
         cur = conn.execute(
@@ -107,7 +114,7 @@ def tambah_menu(data: MenuBaru):
     return dict(row)
 
 
-@app.post("/menu/{menu_id}/stok")
+@app.post("/menu/{menu_id}/stok", dependencies=[Depends(auth.dibutuhkan("pemilik", layanan=True))])
 def ubah_stok(menu_id: int, data: PerubahanStok):
     """Ubah stok secara atomik. Gagal (409) kalau stok akan menjadi negatif."""
     with db() as conn:

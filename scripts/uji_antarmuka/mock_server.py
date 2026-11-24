@@ -5,14 +5,38 @@ Hanya untuk menguji tampilan; BUKAN bagian dari repository."""
 import json
 import mimetypes
 import pathlib
+import sqlite3
 import sys
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 ROOT = pathlib.Path(sys.argv[1]).resolve()
 PORT = int(sys.argv[2])
+REPO = pathlib.Path(__file__).resolve().parent.parent.parent
+# Memakai modul ASLI dari repository (auth, pengguna, pembatas, rekap, contoh_data), bukan tiruan.
+for _n in ("auth", "pembayaran"):
+    sys.path.insert(0, str(REPO / "services" / _n))
+import auth  # noqa: E402
+import contoh_data  # noqa: E402
+import pengguna  # noqa: E402
+import rekap  # noqa: E402
+from pembatas import PembatasLogin  # noqa: E402
+
+WIB = timezone(timedelta(hours=7))
+RAHASIA = "rahasia-mock-server-minimal-16"
+auth.muat_konfigurasi(RAHASIA, "kunci-layanan-mock-16-karakter")
+USERS = sqlite3.connect(":memory:", check_same_thread=False)
+USERS.row_factory = sqlite3.Row
+pengguna.init(USERS)
+pengguna.isi_awal(USERS, "pemilik123", "kasir123", datetime.now(WIB).isoformat(timespec="seconds"))
+PEMBATAS = PembatasLogin(maks_gagal=5, jendela=300, kunci=60)
+PAY = sqlite3.connect(":memory:", check_same_thread=False)
+PAY.execute("""CREATE TABLE tagihan (id INTEGER PRIMARY KEY AUTOINCREMENT, pesanan_id INTEGER NOT NULL UNIQUE,
+  jumlah INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'BELUM_BAYAR', metode TEXT, dibayar INTEGER,
+  kembalian INTEGER, dibuat TEXT NOT NULL, waktu_bayar TEXT)""")
+contoh_data.isi(PAY, datetime.now(WIB).date())
 mimetypes.add_type("application/json", ".json")
 lock = threading.Lock()
 
@@ -36,6 +60,15 @@ def respon(h, code, data):
     h.send_header("Content-Length", str(len(body)))
     h.end_headers()
     h.wfile.write(body)
+
+
+def akses(h, *peran_boleh):
+    """Kembalikan klaim, atau kirim 401/403 dan kembalikan None (aturan sama dengan layanan asli)."""
+    try:
+        return auth.periksa_akses(h.headers.get("Authorization"), None, peran_boleh)
+    except auth.AksesDitolak as e:
+        respon(h, e.status, {"detail": e.pesan})
+        return None
 
 
 class H(BaseHTTPRequestHandler):
@@ -63,20 +96,55 @@ class H(BaseHTTPRequestHandler):
             self.wfile.write(data)
             return
         with lock:
+            if p == "/api/auth/me":
+                k = akses(self, "kasir", "pemilik")
+                return respon(self, 200, k) if k else None
             if p == "/api/menu":
+                if not akses(self, "kasir", "pemilik"):
+                    return
                 return respon(self, 200, MENU)
             if p == "/api/pesanan":
+                if not akses(self, "kasir", "pemilik"):
+                    return
                 return respon(self, 200, list(reversed(PESANAN)))
             if p == "/api/tagihan/laporan":
+                if not akses(self, "kasir", "pemilik"):
+                    return
                 lunas = [t for t in TAGIHAN.values() if t["status"] == "LUNAS"]
                 return respon(self, 200, {"tanggal": "x", "jumlah_transaksi": len(lunas),
                                           "total_pendapatan": sum(t["jumlah"] for t in lunas)})
+            if p == "/api/tagihan/rekap":
+                if not akses(self, "pemilik"):
+                    return
+                q = parse_qs(urlparse(self.path).query)
+                periode = q.get("periode", ["harian"])[0]
+                try:
+                    acuan = datetime.strptime(q["tanggal"][0], "%Y-%m-%d").date() if "tanggal" in q else datetime.now(WIB).date()
+                    return respon(self, 200, rekap.ambil_rekap(PAY, periode, acuan))
+                except (ValueError, KeyError):
+                    return respon(self, 422, {"detail": "Periode atau tanggal tidak valid"})
         respon(self, 404, {"detail": "tidak ada"})
 
     def do_POST(self):
         p = urlparse(self.path).path
         d = self.body()
         with lock:
+            if p == "/api/auth/login":
+                kunci = str(d.get("username", "")).strip().lower() + "|mock"
+                sisa = PEMBATAS.sisa_kunci(kunci)
+                if sisa:
+                    return respon(self, 429, {"detail": f"Terlalu banyak percobaan. Coba lagi dalam {sisa} detik."})
+                u = pengguna.autentikasi(USERS, d.get("username", ""), d.get("password", ""))
+                if not u:
+                    PEMBATAS.gagal(kunci)
+                    return respon(self, 401, {"detail": "Nama pengguna atau kata sandi salah"})
+                PEMBATAS.berhasil(kunci)
+                detik = int(d.get("_detik", 8 * 3600))   # hanya untuk uji sesi kedaluwarsa
+                token = auth.buat_token({"sub": u["username"], "nama": u["nama"], "role": u["role"]}, RAHASIA, detik)
+                return respon(self, 200, {"access_token": token, "token_type": "bearer", "expires_in": detik,
+                                          "user": {"username": u["username"], "nama": u["nama"], "role": u["role"]}})
+            if not akses(self, "kasir", "pemilik"):
+                return
             if p == "/api/pesanan":
                 baris, total = [], 0
                 for it in d["item"]:
@@ -114,6 +182,10 @@ class H(BaseHTTPRequestHandler):
                 if dibayar < t["jumlah"]:
                     return respon(self, 400, {"detail": "Uang kurang"})
                 t.update(status="LUNAS", dibayar=dibayar, kembalian=dibayar - t["jumlah"], metode=d.get("metode"))
+                PAY.execute("INSERT INTO tagihan (pesanan_id, jumlah, status, metode, dibayar, kembalian, dibuat, waktu_bayar) "
+                            "VALUES (?,?,?,?,?,?,?,?)", (pid, t["jumlah"], "LUNAS", d.get("metode") or "TUNAI", dibayar,
+                                                         dibayar - t["jumlah"], datetime.now(WIB).isoformat(timespec="seconds"),
+                                                         datetime.now(WIB).isoformat(timespec="seconds")))
                 PESANAN[pid - 1]["status"] = "DIBAYAR"
                 return respon(self, 200, t)
         respon(self, 404, {"detail": "tidak ada"})
@@ -122,6 +194,8 @@ class H(BaseHTTPRequestHandler):
         p = urlparse(self.path).path
         d = self.body()
         with lock:
+            if not akses(self, "kasir", "pemilik"):
+                return
             if p.endswith("/status") and p.startswith("/api/pesanan/"):
                 o = PESANAN[int(p.split("/")[3]) - 1]
                 if d["status"] == "SELESAI" and o["status"] == "DIBAYAR":

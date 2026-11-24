@@ -12,7 +12,7 @@ Durasi saran: 8-10 menit + tanya jawab. Siapkan dua tab browser: aplikasi (`http
 | 3:00 | Desain | Wireframe tiga ukuran dan design system | `design/*.svg` |
 | 4:30 | **Demo langsung** | Skenario di bagian 2 | Aplikasi berjalan |
 | 7:00 | HCI dan aksesibilitas | Heuristik Nielsen, hukum Fitts, kontras 17/17 lolos | `docs/02`, `docs/03` |
-| 8:00 | Evaluasi dan keterbatasan | 43 pemeriksaan otomatis, bug yang ditemukan dan diperbaiki, hasil uji pengguna | `docs/05` |
+| 8:00 | Evaluasi dan keterbatasan | 84 pemeriksaan otomatis, bug yang ditemukan dan diperbaiki, hasil uji pengguna | `docs/05` |
 | 9:00 | Penutup | Pengembangan lanjutan; nilai melayani pengguna | - |
 
 ## 2. Skenario demo (jalankan berurutan)
@@ -35,7 +35,7 @@ Sebelum presentasi: `docker compose down -v` lalu `docker compose up -d --build`
 |---|---|
 | Desain App multi-platform | Responsif 3 ukuran + PWA (`docs/04`, `design/wireframe-*.svg`) |
 | HCI/UX, user-centric | `docs/01`, `docs/02`, `docs/03`, `docs/05` |
-| Antarmuka ergonomis dan fungsional antar platform | Target sentuh >= 44 px, navigasi sesuai perangkat, uji otomatis 43 pemeriksaan |
+| Antarmuka ergonomis dan fungsional antar platform | Target sentuh >= 44 px, navigasi sesuai perangkat, uji otomatis 84 pemeriksaan |
 | Portofolio desain | `design/` (wireframe, design system, tangkapan layar) |
 | Dokumen pendukung | `docs/01` sampai `docs/06` |
 | Aset struktur kode (prototype frontend) | `frontend/` |
@@ -58,7 +58,7 @@ Pemeriksaan otomatis dan evaluasi heuristik sudah dilakukan (`docs/05` bagian A 
 Dihitung dengan rumus WCAG 2.x di `scripts/kontras.py`, dijalankan otomatis di CI.
 
 **Apa kelemahan sistem ini?**
-Belum ada login, belum diuji dengan pembaca layar sungguhan dan perangkat fisik, offline hanya untuk membuka aplikasi (`docs/02` bagian 6, `docs/04` bagian 7).
+Token tidak bisa dicabut sebelum kedaluwarsa, belum diuji dengan pembaca layar sungguhan dan perangkat fisik, offline hanya untuk membuka aplikasi (`docs/02` bagian 6, `docs/04` bagian 7).
 
 **Siapa pengguna utamanya?**
 Kasir. Persona adalah hipotesis awal; panduan wawancara untuk memvalidasinya ada di `docs/01`.

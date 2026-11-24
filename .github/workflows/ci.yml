@@ -6,15 +6,37 @@ on:
   pull_request:
 
 jobs:
-  integrasi:
+  uji-cepat:
+    # Tanpa Docker: modul keamanan, akun, rekap, dan pemeriksaan statis.
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Uji unit (token, akun, pembatas login, rekap)
+        run: python scripts/uji_unit/run_all.py
+      - name: Modul auth.py identik di semua layanan
+        run: python scripts/cek_modul_sama.py
+      - name: Semua endpoint terlindungi (kecuali login dan health)
+        run: python scripts/cek_proteksi_route.py
+      - name: Kontras warna
+        run: python scripts/kontras.py > /dev/null
+
+  integrasi:
+    needs: uji-cepat
+    runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: ci-jwt-secret-hanya-untuk-pengujian-0123456789
+      SERVICE_KEY: ci-service-key-hanya-untuk-pengujian-0123456789
+      DEMO_DATA: "1"
     steps:
       - uses: actions/checkout@v4
 
       - name: Build dan jalankan semua layanan
         run: docker compose up -d --build --wait
 
-      - name: Uji alur pesan-bayar (smoke test)
+      - name: Uji alur login-pesan-bayar-rekap (smoke test)
         run: python3 scripts/smoke_test.py
 
       - name: Tampilkan log jika gagal

@@ -1,32 +1,52 @@
+# Rahasia dibaca dari file .env (salin dari .env.example). Nilai bawaan di bawah hanya untuk
+# pengembangan lokal dan WAJIB diganti saat dipakai di server sungguhan.
+x-keamanan: &keamanan
+  JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-ganti-sebelum-deploy-0123456789}
+  SERVICE_KEY: ${SERVICE_KEY:-dev-service-key-ganti-sebelum-deploy-0123456789}
+
+x-cek-sehat: &cek-sehat
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+  interval: 5s
+  timeout: 3s
+  retries: 10
+
 services:
+  auth:
+    build: ./services/auth
+    environment:
+      <<: *keamanan
+      DB_PATH: /data/auth.db
+      PEMILIK_PASSWORD: ${PEMILIK_PASSWORD:-pemilik123}
+      KASIR_PASSWORD: ${KASIR_PASSWORD:-kasir123}
+      TOKEN_JAM: ${TOKEN_JAM:-8}
+    volumes:
+      - auth-data:/data
+    healthcheck: *cek-sehat
+
   menu:
     build: ./services/menu
     environment:
+      <<: *keamanan
       DB_PATH: /data/menu.db
     volumes:
       - menu-data:/data
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+    healthcheck: *cek-sehat
 
   pembayaran:
     build: ./services/pembayaran
     environment:
+      <<: *keamanan
       DB_PATH: /data/pembayaran.db
       PESANAN_URL: http://pesanan:8000
+      DEMO_DATA: ${DEMO_DATA:-false}
     volumes:
       - pembayaran-data:/data
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+    healthcheck: *cek-sehat
 
   pesanan:
     build: ./services/pesanan
     environment:
+      <<: *keamanan
       DB_PATH: /data/pesanan.db
       MENU_URL: http://menu:8000
       PEMBAYARAN_URL: http://pembayaran:8000
@@ -37,11 +57,7 @@ services:
         condition: service_healthy
       pembayaran:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+    healthcheck: *cek-sehat
 
   gateway:
     image: nginx:alpine
@@ -51,6 +67,8 @@ services:
       - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./frontend:/usr/share/nginx/html:ro
     depends_on:
+      auth:
+        condition: service_healthy
       menu:
         condition: service_healthy
       pesanan:
@@ -59,6 +77,7 @@ services:
         condition: service_healthy
 
 volumes:
+  auth-data:
   menu-data:
   pesanan-data:
   pembayaran-data:

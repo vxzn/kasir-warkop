@@ -4,7 +4,7 @@ Dokumen ini memisahkan dengan tegas **apa yang sudah diuji** dan **apa yang masi
 
 ## A. Pemeriksaan otomatis (sudah dijalankan)
 
-Skrip: [`scripts/uji_antarmuka/uji_ui.py`](../scripts/uji_antarmuka/uji_ui.py) (Playwright + Chromium) terhadap prototype dengan server API tiruan [`mock_server.py`](../scripts/uji_antarmuka/mock_server.py), yang meniru aturan backend (stok, status, kembalian). Hasil terakhir: **43 dari 43 pemeriksaan lolos**.
+Skrip: [`scripts/uji_antarmuka/uji_ui.py`](../scripts/uji_antarmuka/uji_ui.py) (Playwright + Chromium) terhadap prototype dengan server API tiruan [`mock_server.py`](../scripts/uji_antarmuka/mock_server.py), yang meniru aturan backend (stok, status, kembalian). Hasil terakhir: **84 dari 84 pemeriksaan lolos** (43 awal + 41 untuk login, peran, dan rekap).
 
 | Kelompok | Yang diperiksa |
 |---|---|

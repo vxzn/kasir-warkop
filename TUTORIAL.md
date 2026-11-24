@@ -27,19 +27,30 @@ Ada tiga cara menjalankan. Pilih sesuai kebutuhan:
 Di VS Code: **File > Open Folder** dan pilih `kasir-warkop`, lalu **Terminal > New Terminal**. Pastikan alamat terminal berakhir dengan `kasir-warkop` (folder yang berisi `docker-compose.yml`).
 
 ### 3. Jalankan
+(Opsional tetapi disarankan) salin pengaturan rahasia, lalu ubah isinya di VS Code:
+```powershell
+Copy-Item .env.example .env
+```
+Isi `.env` mengatur `JWT_SECRET`, `SERVICE_KEY`, sandi akun awal, dan `DEMO_DATA=true` (data contoh 60 hari agar Rekap terisi). Tanpa `.env`, aplikasi tetap jalan dengan nilai bawaan untuk demo.
 ```powershell
 docker compose up -d --build
 ```
+Catatan: akun dibuat sekali saat database akun masih kosong. Bila Anda mengganti sandi di `.env` setelah aplikasi pernah jalan, jalankan `docker compose down -v` dulu. Begitu pula bila ingin `DEMO_DATA` aktif pada database pembayaran lama.
 Build pertama butuh beberapa menit karena mengunduh image. Selanjutnya hanya beberapa detik.
 
 ### 4. Pastikan semua hidup
 ```powershell
 docker compose ps
 ```
-Empat baris (`menu`, `pembayaran`, `pesanan`, `gateway`) harus berstatus `running` atau `healthy`.
+Lima baris (`auth`, `menu`, `pembayaran`, `pesanan`, `gateway`) harus berstatus `running` atau `healthy`.
 
-### 5. Buka aplikasi
-Browser ke **http://localhost:8080**
+### 5. Buka aplikasi dan masuk
+Browser ke **http://localhost:8080**. Masuk dengan:
+
+| Peran | Pengguna | Sandi |
+|---|---|---|
+| Pemilik | `pemilik` | `pemilik123` |
+| Kasir | `kasir1` | `kasir123` |
 
 ### 6. Coba alur utamanya
 1. Ketuk kartu menu (mis. Kopi Susu) sampai jumlahnya sesuai. Gunakan kolom **Cari** atau chip kategori untuk menyaring.
@@ -48,13 +59,20 @@ Browser ke **http://localhost:8080**
 4. Ketuk **Selesai** setelah pesanan disajikan.
 5. Coba **Batalkan** pada pesanan yang belum dibayar. Stok akan kembali.
 6. Lihat pendapatan hari ini di bagian atas.
+7. Ketuk **Keluar**, lalu masuk sebagai **kasir1**: tab/tombol **Rekap** tidak ada.
+8. Masuk sebagai **pemilik**, buka **Rekap**: pilih Harian / Mingguan / Bulanan, geser periode dengan panah, bandingkan dengan periode sebelumnya, dan buka tabel rincian.
 
 ### 7. Uji otomatis (opsional)
 Setelah aplikasi hidup, di terminal yang sama:
 ```powershell
 python scripts/smoke_test.py
 ```
-Kalau semua baris diawali `ok` dan berakhir "Semua pengujian lolos", ketiga layanan terintegrasi dengan benar.
+Kalau semua baris diawali `ok` dan berakhir "Semua pengujian lolos", keempat layanan terintegrasi dan autentikasinya bekerja (tanpa token 401, kasir ke rekap 403). Bila Anda mengganti sandi di `.env`, setel variabel yang sama di terminal: `$env:PEMILIK_PASSWORD="..."; $env:KASIR_PASSWORD="..."`.
+
+Uji unit tanpa Docker:
+```powershell
+python scripts/uji_unit/run_all.py
+```
 
 Kalau `python` tidak dikenali, pasang Python dari https://www.python.org/downloads/ dan **centang "Add python.exe to PATH"**, lalu buka ulang terminal. Alternatifnya, coba `py scripts/smoke_test.py`.
 
@@ -68,7 +86,7 @@ docker compose down -v     # hapus semua data (kembali ke awal)
 
 ## Cara B. Antarmuka saja (tanpa Docker)
 
-Cara ini memakai server tiruan yang meniru aturan backend (stok, status, kembalian), jadi tampilan bisa dicoba penuh.
+Cara ini memakai server tiruan yang meniru aturan backend (stok, status, kembalian) dan memakai modul login, token, dan rekap yang asli, jadi tampilan bisa dicoba penuh. Masuk dengan `pemilik`/`pemilik123` atau `kasir1`/`kasir123`; rekap sudah berisi 60 hari data contoh.
 
 ```powershell
 python scripts/uji_antarmuka/mock_server.py frontend 8099
@@ -99,7 +117,7 @@ Buka http://localhost:8080 di Chrome/Edge, lalu klik ikon **Pasang** di ujung ka
 
 ## Menjalankan uji antarmuka otomatis (opsional)
 
-Memeriksa tata letak 3 ukuran layar, area sentuh, aksesibilitas, dan alur lengkap (43 pemeriksaan).
+Memeriksa tata letak 3 ukuran layar, area sentuh, aksesibilitas, dan alur lengkap (84 pemeriksaan: login, peran, rekap, keluar, pemblokiran login, tata letak).
 
 ```powershell
 pip install playwright
@@ -113,7 +131,7 @@ Terminal 2:
 ```powershell
 python scripts/uji_antarmuka/uji_ui.py design/screenshots
 ```
-Hasil akhir yang diharapkan: `43/43 pemeriksaan lolos`. Tangkapan layar tersimpan di `design/screenshots`.
+Hasil akhir yang diharapkan: `84/84 pemeriksaan lolos`. Tangkapan layar tersimpan di `design/screenshots`.
 
 ---
 

@@ -38,7 +38,7 @@ Pengguna utama yang dirancang untuk: **Rina**. Pak Anton dilayani oleh ringkasan
 | **Should** | Memantau pesanan yang sedang berjalan | Daftar pesanan "Aktif", status berlabel |
 | **Should** | Bisa dipakai di HP, tablet, dan komputer | Tata letak responsif 3 ukuran, PWA |
 | **Could** | Ringkasan pendapatan harian | Teks "Hari ini" di header |
-| **Won't (kali ini)** | Login multi-kasir, cetak struk, diskon | Dicatat sebagai pengembangan lanjutan |
+| **Won't (kali ini)** | Cetak struk, diskon | Login dua peran kemudian ditambahkan (`docs/07`); sisanya pengembangan lanjutan |
 
 ## 4. User story dan alur utama
 

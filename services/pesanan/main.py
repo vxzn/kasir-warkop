@@ -7,13 +7,17 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
+
+import auth
 
 DB_PATH = os.getenv("DB_PATH", "pesanan.db")
 MENU_URL = os.getenv("MENU_URL", "http://menu:8000").rstrip("/")
 PEMBAYARAN_URL = os.getenv("PEMBAYARAN_URL", "http://pembayaran:8000").rstrip("/")
 WIB = timezone(timedelta(hours=7))
+
+auth.muat_konfigurasi()  # gagal sejak awal bila JWT_SECRET / SERVICE_KEY belum diatur
 
 app = FastAPI(title="Layanan Pesanan - Kasir Warkop")
 
@@ -98,7 +102,7 @@ def _ambil(conn, pesanan_id: int):
 
 def _pulihkan_stok(item: list[tuple[int, int]]):
     """Kembalikan stok ke Layanan Menu (best effort)."""
-    with httpx.Client(timeout=5) as client:
+    with httpx.Client(timeout=5, headers=auth.header_layanan()) as client:
         for menu_id, jumlah in item:
             try:
                 client.post(f"{MENU_URL}/menu/{menu_id}/stok", json={"delta": jumlah})
@@ -120,12 +124,15 @@ def health():
     return {"status": "ok", "service": "pesanan"}
 
 
-@app.post("/pesanan", status_code=201)
+# Aturan akses: kasir dan pemilik mengelola pesanan. Status DIBAYAR hanya boleh diatur
+# oleh layanan pembayaran (lihat ubah_status), supaya pesanan tidak bisa "dilunasi" tanpa bayar.
+@app.post("/pesanan", status_code=201, dependencies=[Depends(auth.dibutuhkan("kasir", "pemilik"))])
 def buat_pesanan(data: PesananBaru):
     dipotong: list[tuple[int, int]] = []
     pesanan_id = None
     try:
-        with httpx.Client(timeout=5) as client:
+        # Panggilan antar-layanan memakai kunci layanan, bukan token pengguna.
+        with httpx.Client(timeout=5, headers=auth.header_layanan()) as client:
             baris = []
             for it in data.item:
                 r = client.get(f"{MENU_URL}/menu/{it.menu_id}")
@@ -179,7 +186,7 @@ def buat_pesanan(data: PesananBaru):
         return _ambil(conn, pesanan_id)
 
 
-@app.get("/pesanan")
+@app.get("/pesanan", dependencies=[Depends(auth.dibutuhkan("kasir", "pemilik"))])
 def daftar_pesanan(status: str | None = None, limit: int = 50):
     with db() as conn:
         if status:
@@ -194,7 +201,7 @@ def daftar_pesanan(status: str | None = None, limit: int = 50):
         return [_ambil(conn, r["id"]) for r in rows]
 
 
-@app.get("/pesanan/{pesanan_id}")
+@app.get("/pesanan/{pesanan_id}", dependencies=[Depends(auth.dibutuhkan("kasir", "pemilik"))])
 def detail_pesanan(pesanan_id: int):
     with db() as conn:
         p = _ambil(conn, pesanan_id)
@@ -204,8 +211,17 @@ def detail_pesanan(pesanan_id: int):
 
 
 @app.patch("/pesanan/{pesanan_id}/status")
-def ubah_status(pesanan_id: int, data: UbahStatus):
+def ubah_status(
+    pesanan_id: int,
+    data: UbahStatus,
+    klaim: dict = Depends(auth.dibutuhkan("kasir", "pemilik", layanan=True)),
+):
     """Dipakai Layanan Pembayaran (-> DIBAYAR) dan tombol 'Selesai' di kasir."""
+    dari_layanan = klaim["role"] == "layanan"
+    if data.status == "DIBAYAR" and not dari_layanan:
+        raise HTTPException(403, "Status DIBAYAR hanya boleh diatur oleh layanan pembayaran")
+    if data.status == "SELESAI" and dari_layanan:
+        raise HTTPException(403, "Status SELESAI hanya boleh diatur oleh kasir atau pemilik")
     with db() as conn:
         p = _ambil(conn, pesanan_id)
         if p is None:
@@ -223,7 +239,7 @@ def ubah_status(pesanan_id: int, data: UbahStatus):
         return _ambil(conn, pesanan_id)
 
 
-@app.post("/pesanan/{pesanan_id}/batal")
+@app.post("/pesanan/{pesanan_id}/batal", dependencies=[Depends(auth.dibutuhkan("kasir", "pemilik"))])
 def batalkan_pesanan(pesanan_id: int):
     """Batalkan pesanan yang belum dibayar: stok dikembalikan, tagihan dibatalkan."""
     with db() as conn:
@@ -242,7 +258,11 @@ def batalkan_pesanan(pesanan_id: int):
 
     _pulihkan_stok([(i["menu_id"], i["jumlah"]) for i in p["item"]])
     try:
-        httpx.post(f"{PEMBAYARAN_URL}/tagihan/{pesanan_id}/batal", timeout=5)
+        httpx.post(
+            f"{PEMBAYARAN_URL}/tagihan/{pesanan_id}/batal",
+            headers=auth.header_layanan(),
+            timeout=5,
+        )
     except httpx.HTTPError:
         pass
 
